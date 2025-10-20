@@ -70,34 +70,39 @@ func splitMessage(content string, maxLength int) []string {
 	}
 
 	var chunks []string
-	remaining := content
 
-	for len(remaining) > maxLength {
+	in_code := false
+	code_identifier := ""
+
+	for len(content) > maxLength {
 		splitIndex := maxLength
 
-		if lastNewline := strings.LastIndex(remaining[:maxLength], "\n"); lastNewline != -1 {
-			splitIndex = lastNewline + 1
-		} else if lastSpace := strings.LastIndex(remaining[:maxLength], " "); lastSpace != -1 {
+		lastNewLine := strings.LastIndex(content[:maxLength], "\n")
+		lastSpace := strings.LastIndex(content[:maxLength], " ")
+
+		if lastNewLine != -1 {
+			splitIndex = lastNewLine + 1
+		} else if lastSpace != -1 {
 			splitIndex = lastSpace + 1
 		}
 
-		chunk := remaining[:splitIndex]
-		if strings.Count(chunk, "```")%2 == 1 {
-			codeStart := strings.LastIndex(remaining[:splitIndex], "```")
+		chunk := content[:splitIndex]
+		if strings.Count(chunk, "```")%2 == 1 { // odd number of ```
+			codeStart := strings.LastIndex(content[:splitIndex], "```")
 			if codeStart > 0 {
 				splitIndex = codeStart
-				chunk = remaining[:splitIndex]
+				chunk = content[:splitIndex]
 			} else {
 				chunk += "```"
 			}
 		}
 
 		chunks = append(chunks, chunk)
-		remaining = remaining[splitIndex:]
+		content = content[splitIndex:]
 	}
 
 	if len(remaining) > 0 {
-		if len(chunks) > 0 && strings.HasSuffix(chunks[len(chunks)-1], "```") {
+		if strings.HasSuffix(chunks[len(chunks)-1], "```") {
 			if !strings.HasPrefix(remaining, "```") {
 				remaining = "```" + remaining
 			}
