@@ -160,7 +160,7 @@ func slashCommand(discord *discordgo.Session, interation *discordgo.InteractionC
 			})
 			return
 		}
-		guild_memories[interation.GuildID][args[0].StringValue()] += guild_memories[interation.GuildID][interation.Member.User.ID]
+		guild_memories[interation.GuildID][args[0].StringValue()] += guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]]
 		discord.InteractionRespond(interation.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -221,7 +221,11 @@ func slashCommand(discord *discordgo.Session, interation *discordgo.InteractionC
 			guild_memories[interation.GuildID] = make(map[string]string)
 		}
 
-		guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]] += " : NEXT PROMPT : " + interation.Member.User.GlobalName + " says: " + args[0].StringValue() + ". you said: " + args[1].StringValue()
+		if guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]] != "" {
+			guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]] += ","
+		}
+
+		guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]] += "{\"user\":\"" + interation.Member.User.GlobalName + "\",\"prompt\":\"" + args[0].StringValue() + "\",\"response\":\"" + args[1].StringValue() + "\"}"
 
 		discord.InteractionRespond(interation.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -283,21 +287,23 @@ func slashCommand(discord *discordgo.Session, interation *discordgo.InteractionC
 
 		personality := personalities[user_personality[interation.Member.User.ID]]
 
-		response, err := client.Models.GenerateContent(ctx, personality.ai_model, genai.Text(" : MEMORY : "+guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]]+" : NORMAL PROMPT : "+interation.Member.User.GlobalName+" says: "+args[0].StringValue()), &genai.GenerateContentConfig{SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(personality.system_prompt)}}, Temperature: &personality.temperature})
+		response, err := client.Models.GenerateContent(ctx, personality.ai_model, genai.Text("\"memory\":["+guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]]+"],\"prompt\":{ \"user\":\""+interation.Member.User.GlobalName+"\",\"prompt\":\""+args[0].StringValue()+"\"}"), &genai.GenerateContentConfig{SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(personality.system_prompt)}}, Temperature: &personality.temperature})
 		if err != nil {
 			discord.ChannelMessageSend(interation.ChannelID, err.Error())
 			return
 		}
 
-		full_string := "`" + args[0].StringValue() + "` **with** `" + user_personality[interation.Member.User.ID] + "` **from** `" + interation.Member.User.GlobalName + "`\n"
-
+		full_string := ""
 		for _, part := range response.Candidates[0].Content.Parts {
 			full_string += part.Text
 		}
 
-		guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]] += " : NEXT PROMPT : " + interation.Member.User.GlobalName + " says: " + args[0].StringValue() + ". you said: " + full_string
+		if guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]] != "" {
+			guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]] += ","
+		}
+		guild_memories[interation.GuildID][user_personality[interation.Member.User.ID]] += "{\"user\":\"" + interation.Member.User.GlobalName + "\",\"prompt\":\"" + args[0].StringValue() + "\",\"response\":\"" + full_string + "\"}"
 
-		messages := splitMessage(full_string, 2000)
+		messages := splitMessage("`"+args[0].StringValue()+"` **with** `"+user_personality[interation.Member.User.ID]+"` **from** `"+interation.Member.User.GlobalName+"`\n"+full_string, 2000)
 
 		for _, msg := range messages {
 			discord.ChannelMessageSend(interation.ChannelID, msg)
@@ -307,18 +313,19 @@ func slashCommand(discord *discordgo.Session, interation *discordgo.InteractionC
 }
 
 func registerCommands(discord *discordgo.Session, guild string) {
-	existingCommands, err := discord.ApplicationCommands(discord.State.User.ID, guild)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, cmd := range existingCommands {
-		err := discord.ApplicationCommandDelete(discord.State.User.ID, guild, cmd.ID)
+	/*
+		existingCommands, err := discord.ApplicationCommands(discord.State.User.ID, guild)
 		if err != nil {
 			log.Fatal(err)
 		}
-	}
 
+		for _, cmd := range existingCommands {
+			err := discord.ApplicationCommandDelete(discord.State.User.ID, guild, cmd.ID)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	*/
 	personalityChoices := make([]*discordgo.ApplicationCommandOptionChoice, 0, len(personalities))
 	for name := range personalities {
 		choice := &discordgo.ApplicationCommandOptionChoice{
