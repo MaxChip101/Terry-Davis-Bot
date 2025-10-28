@@ -33,6 +33,9 @@ var personalities map[string]Personality
 var guild_memories map[string]map[string]string
 var user_personality map[string]string
 
+var ctx context.Context
+var client *genai.Client
+
 func Run() {
 	personalities = make(map[string]Personality)
 	guild_memories = make(map[string]map[string]string)
@@ -47,10 +50,19 @@ func Run() {
 	personalities["gemini-2.5-flash"] = Personality{temperature: 1.0, ai_model: "gemini-2.5-flash", system_prompt: "you are normal google gemini 2.5 flash"}
 	personalities["gemini-2.0-flash"] = Personality{temperature: 1.0, ai_model: "gemini-2.0-flash", system_prompt: "you are normal google gemini 2.0 flash"}
 
+	var err error
+	ctx = context.Background()
+	client, err = genai.NewClient(ctx, &genai.ClientConfig{APIKey: GeminiKey})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	discord, err := discordgo.New("Bot " + BotToken)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	discord.Identify.Intents = discordgo.IntentsGuildMessages
 
 	discord.AddHandler(newMessage)
 	discord.AddHandler(onGuildJoin)
@@ -64,8 +76,6 @@ func Run() {
 
 	discord.Open()
 	defer discord.Close()
-
-	discord.Identify.Intents = discordgo.IntentsGuildMessages
 
 	fmt.Println("Bot is running")
 	c := make(chan os.Signal, 1)
@@ -262,11 +272,6 @@ func slashCommand(discord *discordgo.Session, interation *discordgo.InteractionC
 		})
 	case "ai":
 		args := interation.ApplicationCommandData().Options
-		ctx := context.Background()
-		client, err := genai.NewClient(ctx, &genai.ClientConfig{APIKey: GeminiKey})
-		if err != nil {
-			panic(err)
-		}
 
 		discord.InteractionRespond(interation.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
