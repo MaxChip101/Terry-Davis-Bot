@@ -4,6 +4,7 @@ import (
 	"disc_ai/bot"
 	"log"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -16,8 +17,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	botToken := string(discord_token)
-	aiKey := string(gemini_token)
+	botToken := strings.TrimSpace(string(discord_token))
+	aiKey := strings.TrimSpace(string(gemini_token))
 	bot.BotToken = botToken
 	bot.GeminiKey = aiKey
 	bot.Run()
