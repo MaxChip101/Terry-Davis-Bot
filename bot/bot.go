@@ -149,25 +149,25 @@ func onGuildJoin(discord *discordgo.Session, event *discordgo.GuildCreate) {
 	registerCommands(discord, event.ID)
 }
 
-func prompt(discord *discordgo.Session, message *discordgo.MessageCreate) {
+func prompt(discord *discordgo.Session, message *discordgo.MessageCreate, context string) {
 	if guild_memories[message.GuildID] == nil {
 		guild_memories[message.GuildID] = make(map[string]string)
 	}
 
-	if user_personality[message.Member.User.ID] == "" && message.GuildID == "1116391273109127201" {
-		user_personality[message.Member.User.ID] = "terry davis"
-	} else if user_personality[message.Member.User.ID] == "" {
-		user_personality[message.Member.User.ID] = "dean"
+	if user_personality[message.Author.ID] == "" && message.GuildID == "1116391273109127201" {
+		user_personality[message.Author.ID] = "terry davis"
+	} else if user_personality[message.Author.ID] == "" {
+		user_personality[message.Author.ID] = "dean"
 	}
 
-	personality := personalities[user_personality[message.Member.User.ID]]
+	personality := personalities[user_personality[message.Author.ID]]
 
 	err := discord.ChannelTyping(message.ChannelID)
 	if err != nil {
 		fmt.Println("failed to make typing")
 	}
 
-	response, err := client.Models.GenerateContent(ctx, personality.ai_model, genai.Text("\"memory\":["+guild_memories[message.GuildID][user_personality[message.Member.User.ID]]+"],\"prompt\":{ \"user\":\""+message.Member.User.GlobalName+"\",\"prompt\":\""+message.Content+"\"}"), &genai.GenerateContentConfig{SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(personality.system_prompt)}}, Temperature: &personality.temperature})
+	response, err := client.Models.GenerateContent(ctx, personality.ai_model, genai.Text("\"memory\":["+guild_memories[message.GuildID][user_personality[message.Author.ID]]+"],\"prompt\":{ \"user\":\""+message.Author.GlobalName+"\",\"prompt\":\""+message.Content+"\",\"replying-to\":\""+context+"\"}"), &genai.GenerateContentConfig{SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(personality.system_prompt)}}, Temperature: &personality.temperature})
 	if err != nil {
 		discord.ChannelMessageSend(message.ChannelID, err.Error())
 		return
@@ -178,10 +178,10 @@ func prompt(discord *discordgo.Session, message *discordgo.MessageCreate) {
 		full_string += part.Text
 	}
 
-	if guild_memories[message.GuildID][user_personality[message.Member.User.ID]] != "" {
-		guild_memories[message.GuildID][user_personality[message.Member.User.ID]] += ","
+	if guild_memories[message.GuildID][user_personality[message.Author.ID]] != "" {
+		guild_memories[message.GuildID][user_personality[message.Author.ID]] += ","
 	}
-	guild_memories[message.GuildID][user_personality[message.Member.User.ID]] += "{\"user\":\"" + message.Member.User.GlobalName + "\",\"prompt\":\"" + message.Content + "\",\"response\":\"" + full_string + "\"}"
+	guild_memories[message.GuildID][user_personality[message.Author.ID]] += "{\"user\":\"" + message.Author.GlobalName + "\",\"prompt\":\"" + message.Content + "\",\"response\":\"" + full_string + "\"}"
 
 	messages := splitMessage(full_string, 2000)
 
@@ -194,13 +194,18 @@ func newMessage(discord *discordgo.Session, message *discordgo.MessageCreate) {
 	if message.Author.ID == discord.State.User.ID {
 		return
 	}
+	referenced := false
 	for _, mention := range message.Mentions {
 		if mention.ID == discord.State.User.ID {
-			prompt(discord, message)
+			referenced = true
 		}
 	}
-	if message.ReferencedMessage.Author.ID == discord.State.User.ID {
-		prompt(discord, message)
+	if message.ReferencedMessage != nil && message.ReferencedMessage.Author != nil && message.ReferencedMessage.Author.ID == discord.State.User.ID {
+		prompt(discord, message, message.ReferencedMessage.Content)
+	}
+
+	if referenced {
+		prompt(discord, message, "")
 	}
 }
 
@@ -497,6 +502,3 @@ func registerCommands(discord *discordgo.Session, guild string) {
 		}
 	}
 }
-
-
-
