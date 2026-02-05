@@ -202,6 +202,7 @@ func newMessage(discord *discordgo.Session, message *discordgo.MessageCreate) {
 	}
 	if message.ReferencedMessage != nil && message.ReferencedMessage.Author != nil && message.ReferencedMessage.Author.ID == discord.State.User.ID {
 		prompt(discord, message, message.ReferencedMessage.Content)
+		referenced = false
 	}
 
 	if referenced {
