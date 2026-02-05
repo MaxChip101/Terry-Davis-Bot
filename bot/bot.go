@@ -497,3 +497,6 @@ func registerCommands(discord *discordgo.Session, guild string) {
 		}
 	}
 }
+
+
+
