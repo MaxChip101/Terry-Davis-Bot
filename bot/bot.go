@@ -149,7 +149,7 @@ func onGuildJoin(discord *discordgo.Session, event *discordgo.GuildCreate) {
 	registerCommands(discord, event.ID)
 }
 
-func prompt(discord *discordgo.Session, message *discordgo.MessageCreate, context string) {
+func prompt(discord *discordgo.Session, message *discordgo.MessageCreate, context string, context_author string) {
 	if guild_memories[message.GuildID] == nil {
 		guild_memories[message.GuildID] = make(map[string]string)
 	}
@@ -167,7 +167,7 @@ func prompt(discord *discordgo.Session, message *discordgo.MessageCreate, contex
 		fmt.Println("failed to make typing")
 	}
 
-	response, err := client.Models.GenerateContent(ctx, personality.ai_model, genai.Text("\"memory\":["+guild_memories[message.GuildID][user_personality[message.Author.ID]]+"],\"prompt\":{ \"user\":\""+message.Author.GlobalName+"\",\"prompt\":\""+message.Content+"\",\"replying-to\":\""+context+"\"}"), &genai.GenerateContentConfig{SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(personality.system_prompt)}}, Temperature: &personality.temperature})
+	response, err := client.Models.GenerateContent(ctx, personality.ai_model, genai.Text("\"memory\":["+guild_memories[message.GuildID][user_personality[message.Author.ID]]+"],\"prompt\":{ \"user\":\""+message.Author.GlobalName+"\",\"prompt\":\""+message.Content+"\",\"replying-to\":{\"user\":\""+context_author+"\",\"content\":\""+context+"\"}"), &genai.GenerateContentConfig{SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(personality.system_prompt)}}, Temperature: &personality.temperature})
 	if err != nil {
 		discord.ChannelMessageSend(message.ChannelID, err.Error())
 		return
@@ -206,9 +206,9 @@ func newMessage(discord *discordgo.Session, message *discordgo.MessageCreate) {
 
 	if referenced {
 		if message.ReferencedMessage != nil && message.ReferencedMessage.Author != nil {
-			prompt(discord, message, message.ReferencedMessage.Content)
+			prompt(discord, message, message.ReferencedMessage.Content, message.ReferencedMessage.Author.GlobalName)
 		} else {
-			prompt(discord, message, "")
+			prompt(discord, message, "", "")
 		}
 	}
 }
