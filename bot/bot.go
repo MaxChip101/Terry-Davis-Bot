@@ -219,11 +219,7 @@ func newMessage(discord *discordgo.Session, message *discordgo.MessageCreate) {
 	}
 
 	if referenced {
-		if message.ReferencedMessage != nil {
-			prompt(discord, message, message.MessageReference, message.ReferencedMessage)
-		} else {
-			prompt(discord, message, message.MessageReference, nil)
-		}
+		prompt(discord, message, message.Reference(), message.ReferencedMessage)
 	}
 }
 
