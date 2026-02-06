@@ -167,8 +167,6 @@ func prompt(discord *discordgo.Session, message *discordgo.MessageCreate, contex
 		fmt.Println("failed to make typing")
 	}
 
-	fmt.Println(context)
-
 	response, err := client.Models.GenerateContent(ctx, personality.ai_model, genai.Text("\"memory\":["+guild_memories[message.GuildID][user_personality[message.Author.ID]]+"],\"prompt\":{ \"user\":\""+message.Author.GlobalName+"\",\"prompt\":\""+message.Content+"\",\"replying-to\":\""+context+"\"}"), &genai.GenerateContentConfig{SystemInstruction: &genai.Content{Parts: []*genai.Part{genai.NewPartFromText(personality.system_prompt)}}, Temperature: &personality.temperature})
 	if err != nil {
 		discord.ChannelMessageSend(message.ChannelID, err.Error())
